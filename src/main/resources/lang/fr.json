@@ -1,0 +1,43 @@
+{
+  "infoboxText" : "Infobox",
+  "disambiguation": [
+    "Homonymie"
+  ],
+  "category": [
+    "Catégorie",
+    "Category"
+  ],
+  "redirect": "REDIRECTION",
+  "partNames": [
+    "nom",
+    "prénom",
+    "nom de famille",
+    "comme nom de famille",
+    "comme prénom",
+    "prénoms",
+    "comme nom de famille",
+    "personnes avec le nom",
+    "nom et prénom de famille"
+  ],
+  "titlesPref": [
+    "portail:",
+    "catégorie:",
+    "fichier:",
+    "wikipédia:",
+    "modèle:",
+    "template:"
+  ],
+  "beComp" : [
+    "est un",
+    "sont un",
+    "était un",
+    "étaient un",
+    "être un",
+    "est le",
+    "sont les",
+    "était le",
+    "où le",
+    "soit le"
+  ],
+  "coreNlpLang": "StanfordCoreNLP-french.properties"
+}

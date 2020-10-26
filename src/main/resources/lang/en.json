@@ -1,0 +1,43 @@
+{
+  "infoboxText" : "Infobox",
+  "disambiguation": [
+    "disambig",
+    "disambiguation"
+  ],
+  "category": [
+    "Category"
+  ],
+  "redirect": "REDIRECT",
+  "partNames": [
+    "name",
+    "given name",
+    "surname",
+    "as surname",
+    "as given name",
+    "given names",
+    "as a surname",
+    "people with the surname",
+    "family name and surname"
+  ],
+  "titlesPref": [
+    "portal:",
+    "category:",
+    "file:",
+    "wikipedia:",
+    "draft:",
+    "template:"
+  ],
+  "beComp" : [
+    "is a",
+    "are a",
+    "was a",
+    "were a",
+    "be a",
+    "is the",
+    "are the",
+    "was the",
+    "were the",
+    "be the"
+  ],
+  "coreNlpLang": "english"
+}

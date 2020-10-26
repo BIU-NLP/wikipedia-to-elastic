@@ -1,0 +1,43 @@
+{
+  "infoboxText" : "Infobox",
+  "disambiguation": [
+    "Desambiguación"
+  ],
+  "category": [
+    "Categoría",
+    "Category"
+  ],
+  "redirect" : "REDIRECCIÓN",
+  "partNames": [
+    "nombre",
+    "nombre de pila",
+    "apellido",
+    "como apellido",
+    "como nombre de pila",
+    "nombres dados",
+    "como un apellido",
+    "personas con el apellido",
+    "apellido y apellido"
+  ],
+  "titlesPref": [
+    "portal:",
+    "categoría:",
+    "Archivo:",
+    "wikipedia:",
+    "draft:",
+    "Plantilla:"
+  ],
+  "beComp" : [
+    "es un",
+    "son un",
+    "era un",
+    "eran un",
+    "ser un",
+    "es el",
+    "son los",
+    "fue el",
+    "fueron la",
+    "ser el"
+  ],
+  "coreNlpLang": "StanfordCoreNLP-spanish.properties"
+}

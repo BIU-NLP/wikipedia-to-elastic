@@ -4,19 +4,21 @@
 
 package wiki.utils;
 
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import wiki.data.relations.RelationType;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Objects;
 
 public class WikiToElasticConfiguration {
 
-    private final static Logger LOGGER = LogManager.getLogger(WikiToElasticConfiguration.class);
-
     public static final Type CONFIGURATION_TYPE = new TypeToken<WikiToElasticConfiguration>() {}.getType();
-    public static final Gson gson = new Gson();
 
     private String indexName;
     private String docType;
@@ -29,7 +31,10 @@ public class WikiToElasticConfiguration {
     private int shards;
     private int replicas;
     private int insertBulkSize;
-    private boolean normalizeFields;
+    private boolean extractRelationFields;
+    private String lang;
+    private boolean includeRawText;
+    private List<RelationType> relationTypes;
 
     private transient String mappingFileContent = null;
     private transient String settingFileContent = null;
@@ -122,25 +127,51 @@ public class WikiToElasticConfiguration {
         this.insertBulkSize = insertBulkSize;
     }
 
-    public boolean isNormalizeFields() {
-        return normalizeFields;
+    public boolean isExtractRelationFields() {
+        return extractRelationFields;
     }
 
-    public void setNormalizeFields(boolean normalizeFields) {
-        this.normalizeFields = normalizeFields;
+    public void setExtractRelationFields(boolean extractRelationFields) {
+        this.extractRelationFields = extractRelationFields;
     }
 
-    public String getMappingFileContent() {
+    public List<RelationType> getRelationTypes() {
+        return relationTypes;
+    }
+
+    public void setRelationTypes(List<RelationType> relationTypes) {
+        this.relationTypes = relationTypes;
+    }
+
+    public String getMappingFileContent() throws IOException {
         if(this.mappingFileContent == null && this.mapping != null) {
-            this.mappingFileContent = WikiToElasticUtils.getFileContent(this.mapping);
+            this.mappingFileContent = IOUtils.toString(Objects.requireNonNull(
+                    WikiToElasticUtils.class.getClassLoader().getResourceAsStream(this.mapping)), StandardCharsets.UTF_8);
         }
         return this.mappingFileContent;
     }
 
-    public String getSettingFileContent() {
+    public String getSettingFileContent() throws IOException {
         if(this.settingFileContent == null && this.setting != null) {
-            this.settingFileContent = WikiToElasticUtils.getFileContent(this.setting);
+            this.settingFileContent = IOUtils.toString(Objects.requireNonNull(
+                            WikiToElasticUtils.class.getClassLoader().getResourceAsStream(this.setting)), StandardCharsets.UTF_8);
         }
         return this.settingFileContent;
+    }
+
+    public String getLang() {
+        return lang;
+    }
+
+    public void setLang(String lang) {
+        this.lang = lang;
+    }
+
+    public boolean isIncludeRawText() {
+        return includeRawText;
+    }
+
+    public void setIncludeRawText(boolean includeRawText) {
+        this.includeRawText = includeRawText;
     }
 }

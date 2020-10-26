@@ -2,12 +2,10 @@
  * @author  Alon Eirew
  */
 
-package wiki.parsers;
+package wiki.utils;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.engine.Engine;
-import wiki.data.WikiParsedPage;
 import wiki.data.WikiParsedPageBuilder;
 import wiki.data.WikiParsedPageRelations;
 import wiki.data.WikiParsedPageRelationsBuilder;
@@ -25,37 +23,48 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
 
-public class STAXParser implements IWikiParser {
+public class STAXParser {
 
     public enum DeleteUpdateMode {DELETE, UPDATE, NA}
 
-    private static final String[] FILTER_TITLES = {"portal:", "category:", "file:", "wikipedia:", "draft:", "template:"};
+    private static final String PAGE_ELEMENT = "page";
+    private static final String TITLE_ELEMENT = "title";
+    private static final String ID_ELEMENT = "id";
+    private static final String TEXT_ELEMENT = "text";
+    private static final String REDIRECT_ELEMENT = "redirect";
+
+    private final String redirectTextPrefix;
+    private final String[] filterTitles;
 
     private final static Logger LOGGER = LogManager.getLogger(STAXParser.class);
 
+    private final boolean includeRawText;
     private final RejectedExecutionHandler rejectedExecutionHandler = new ThreadPoolExecutor.CallerRunsPolicy();
-    private final BlockingQueue<Runnable> blockingQueue = new ArrayBlockingQueue<Runnable>(100);
+    private final BlockingQueue<Runnable> blockingQueue = new ArrayBlockingQueue<>(100);
     private final IPageHandler handler;
     private final ExecutorService executorService;
     private final Set<Long> totalIds = new HashSet<>();
-    private boolean normalize;
+    private boolean extractFields;
     private DeleteUpdateMode deleteUpdateMode;
 
 
-    public STAXParser(IPageHandler handler) {
-        this.executorService = initExecuterService();
+    public STAXParser(IPageHandler handler, LangConfiguration langConfig, boolean includeRawText) {
+        this.executorService = initExecutorService();
         this.handler = handler;
-        this.normalize = true;
+        this.extractFields = true;
         this.deleteUpdateMode = DeleteUpdateMode.NA;
+        this.filterTitles = langConfig.getTitlesPref().toArray(new String[0]);
+        this.redirectTextPrefix = "#" + langConfig.getRedirect();
+        this.includeRawText = includeRawText;
     }
 
-    public STAXParser(IPageHandler handler, boolean normalize, DeleteUpdateMode mode) {
-        this(handler);
-        this.normalize = normalize;
+    public STAXParser(IPageHandler handler, WikiToElasticConfiguration config, LangConfiguration langConfig, DeleteUpdateMode mode) {
+        this(handler, langConfig, config.isIncludeRawText());
         this.deleteUpdateMode = mode;
+        this.extractFields = config.isExtractRelationFields();
     }
 
-    private ExecutorService initExecuterService() {
+    private ExecutorService initExecutorService() {
         int cores = Runtime.getRuntime().availableProcessors();
         return new ThreadPoolExecutor(cores, cores,
                 0L, TimeUnit.MILLISECONDS, this.blockingQueue, this.rejectedExecutionHandler);
@@ -66,7 +75,6 @@ public class STAXParser implements IWikiParser {
      * Starting point of the parsing process of the wikipedia xml dump
      * @param inputStream to the wikipedia dump file
      */
-    @Override
     public void parse(InputStream inputStream) {
         try {
             XMLInputFactory factory = XMLInputFactory.newInstance();
@@ -132,28 +140,30 @@ public class STAXParser implements IWikiParser {
                         break;
                     case ID_ELEMENT:
                         if(id == -1) {
-                            id = Long.valueOf(reader.getElementText());
+                            id = Long.parseLong(reader.getElementText());
                             totalIds.add(id);
                         }
                         break;
                     case TEXT_ELEMENT:
                         text = reader.getElementText();
-                        if(text.startsWith(REDIRECT_TEXT_PREFIX)) {
-                            text = REDIRECT_TEXT_PREFIX;
+                        if(text.startsWith(redirectTextPrefix)) {
+                            text = redirectTextPrefix;
                         }
                         break;
                 }
             }
         }
 
-        if(this.deleteUpdateMode == DeleteUpdateMode.UPDATE) {
-            if(this.handler.isPageExists(String.valueOf(id))) {
-                LOGGER.info("Page with id-" + id + ", title-" + title + ", already exist, moving on...");
+        if(title != null) {
+            if (this.deleteUpdateMode == DeleteUpdateMode.UPDATE) {
+                if (this.handler.isPageExists(String.valueOf(id))) {
+                    LOGGER.info("Page with id-" + id + ", title-" + title + ", already exist, moving on...");
+                } else {
+                    handlePage(title, id, text, redirect);
+                }
             } else {
                 handlePage(title, id, text, redirect);
             }
-        } else {
-            handlePage(title, id, text, redirect);
         }
     }
 
@@ -163,36 +173,36 @@ public class STAXParser implements IWikiParser {
     private void handlePage(String title, long id, String text, String redirect) {
         String titleLow = title.toLowerCase();
         // If page is a meta data page, don't process it
-        if(Arrays.stream(FILTER_TITLES).parallel().anyMatch(titleLow::contains)) {
+        if(Arrays.stream(filterTitles).parallel().anyMatch(titleLow::contains)) {
             LOGGER.info("Skipping page processing of- " + title);
         } else {
             this.executorService.submit(() -> {
-                LOGGER.info("prepare to commit page with id-" + id + ", title-" + title);
-                WikiParsedPageRelations relations;
-                // Redirect pages text are not processed (can be found in the underline redirected page)
-                if (redirect == null || redirect.isEmpty()) {
-                    if (this.normalize) {
-                        // Building the relations and norm relations object
-                        relations = new WikiParsedPageRelationsBuilder().buildFromWikipediaPageText(text);
+                try {
+                    LOGGER.info("prepare to commit page with id-" + id + ", title-" + title);
+                    WikiParsedPageRelations relations;
+                    // Redirect pages text are not processed (can be found in the underline redirected page)
+                    if (this.extractFields && (redirect == null || redirect.isEmpty())) {
+                        relations = new WikiParsedPageRelationsBuilder().buildFromText(text);
                     } else {
-                        // Building only the relations object
-                        relations = new WikiParsedPageRelationsBuilder().buildFromWikipediaPageTextNoNormalization(text);
+                        // Empty relations for redirect pages (Relations can be found in the underline redirected page)
+                        relations = new WikiParsedPageRelationsBuilder().build();
                     }
-                } else {
-                    // Empty relations for redirect pages (Relations can be found in the underline redirected page)
-                    relations = new WikiParsedPageRelationsBuilder().build();
+
+                    final WikiParsedPageBuilder pageBuilder = new WikiParsedPageBuilder()
+                            .setId(id)
+                            .setTitle(title)
+                            .setRedirectTitle(redirect)
+                            .setRelations(relations);
+
+                    if(includeRawText) {
+                        pageBuilder.setText(text);
+                    }
+
+                    // Adding the page to the elastic search queue handler
+                    handler.addPage(pageBuilder.build());
+                } catch (Exception ex) {
+                    LOGGER.error("Got Exception in thread", ex);
                 }
-
-                final WikiParsedPage page = new WikiParsedPageBuilder()
-                        .setId(id)
-                        .setTitle(title)
-                        .setRedirectTitle(redirect)
-                        .setText(text)
-                        .setRelations(relations)
-                        .build();
-
-                // Adding the page to the elastic search queue handler
-                handler.addPage(page);
             });
         }
     }

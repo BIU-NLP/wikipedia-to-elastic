@@ -4,10 +4,15 @@ version '1.0'
 apply plugin: 'java'
 apply plugin: 'java-library-distribution'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 11
+targetCompatibility = 11
 
 repositories {
     mavenCentral()
+}
+
+test {
+    useJUnitPlatform()
 }
 
 dependencies {
@@ -19,9 +24,18 @@ dependencies {
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
     compile group: 'commons-io', name: 'commons-io', version: '2.6'
-    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', version: '3.9.2'
-    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models', version: '3.9.2'
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', version: '4.0.0'
+    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models', version: '4.0.0'
+//    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models-spanish', version: '4.0.0'
+//    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models-german', version: '4.0.0'
+//    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models-french', version: '4.0.0'
+//    compile group: 'edu.stanford.nlp', name: 'stanford-corenlp', classifier: 'models-chinese', version: '4.0.0'
+    compile group: 'info.bliki.wiki', name: 'bliki-core', version: '3.1.0'
+    compile group: 'me.tongfei', name: 'progressbar', version: '0.8.1'
+
+    compile group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
 }
 
 distZip.shouldRunAfter(build)

@@ -1,0 +1,22 @@
+{
+  "indexName": "wikitestingindex",
+  "docType": "wikipage",
+  "extractRelationFields": false,
+  "insertBulkSize": 100,
+  "mapping": "mapping.json",
+  "setting": "en_map_settings.json",
+  "host": "localhost",
+  "wikiDump": "dumps/smallenwiki-latest-pages.xml.bz2",
+  "port": 9200,
+  "scheme": "http",
+  "shards": 1,
+  "replicas": 0,
+  "lang": "en",
+  "relationTypes": [
+    "BeComp",
+    "Category",
+    "Infobox",
+    "Parenthesis",
+    "PartName"
+  ]
+}

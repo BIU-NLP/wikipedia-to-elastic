@@ -1,57 +1,48 @@
 package wiki.elastic;
 
+import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
-import org.apache.http.HttpHost;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import wiki.data.WikiParsedPage;
 import wiki.data.WikiParsedPageBuilder;
 import wiki.utils.WikiToElasticConfiguration;
-import wiki.utils.TestWikiToElasticUtils;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class TestElasticAPI {
+    private static final Gson GSON = new Gson();
 
     private WikiToElasticConfiguration configuration;
     private RestHighLevelClient client;
     private ElasticAPI elasicApi;
 
 
-    @Before
     public void prepareText() throws FileNotFoundException {
-        URL url = TestElasticAPI.class.getClassLoader().getResource("test_conf.json");
+        URL url = TestElasticAPI.class.getClassLoader().getResource("test_config.json");
         if(this.configuration == null && url != null) {
             String file = url.getFile();
             JsonReader reader = new JsonReader(new FileReader(file));
-            this.configuration = WikiToElasticConfiguration.gson.fromJson(reader, WikiToElasticConfiguration.CONFIGURATION_TYPE);
+            this.configuration = GSON.fromJson(reader, WikiToElasticConfiguration.CONFIGURATION_TYPE);
         }
+
+        assert this.configuration != null;
 
         // init elastic client
         if(this.elasicApi == null) {
-            this.client = new RestHighLevelClient(
-                    RestClient.builder(
-                            new HttpHost(configuration.getHost(), configuration.getPort(), configuration.getScheme())));
-
-            this.elasicApi = new ElasticAPI(client);
+            this.elasicApi = new ElasticAPI(configuration);
         }
 
 
@@ -62,16 +53,12 @@ public class TestElasticAPI {
         this.elasicApi.createIndex(configuration);
     }
 
-    @Test
     public void testPutDocOnElastic() throws IOException, InterruptedException {
         // Create/Add Page
-        // Listener
-        ActionListener<IndexResponse> listener = new ElasticDocCreateListener();
-
         // Create page
         List<WikiParsedPage> testPages = createTestPages();
         for (WikiParsedPage page : testPages) {
-            this.elasicApi.addDocAsnc(listener, this.configuration.getIndexName(), this.configuration.getDocType(), page);
+            this.elasicApi.addDocAsnc(this.configuration.getIndexName(), this.configuration.getDocType(), page);
         }
 
         // Need to wait for index to be searchable
@@ -79,37 +66,31 @@ public class TestElasticAPI {
         searchCreatedIndex(this.configuration, this.client, this.elasicApi);
     }
 
-    @Test
     public void testPutBulkOnElastic() throws IOException, InterruptedException {
         // Create/Add Page
-        // Listener
-        ActionListener<BulkResponse> listener = new ElasticBulkDocCreateListener();
-
         // Create page
         List<WikiParsedPage> testPages = createTestPages();
 
-        this.elasicApi.addBulkAsnc(listener, this.configuration.getIndexName(), this.configuration.getDocType(), testPages);
+        this.elasicApi.addBulkAsnc(this.configuration.getIndexName(), this.configuration.getDocType(), testPages);
 
         Thread.sleep(2000);
 
         searchCreatedIndex(this.configuration, this.client, this.elasicApi);
     }
 
-    @Test
     public void testIsDocExist() throws InterruptedException {
         // Create page
         List<WikiParsedPage> testPages = createTestPages();
-        ActionListener<BulkResponse> listener = new ElasticBulkDocCreateListener();
-        this.elasicApi.addBulkAsnc(listener, this.configuration.getIndexName(), this.configuration.getDocType(), testPages);
+        this.elasicApi.addBulkAsnc(this.configuration.getIndexName(), this.configuration.getDocType(), testPages);
 
         Thread.sleep(2000);
 
         for(WikiParsedPage page : testPages) {
-            Assert.assertTrue(this.elasicApi.isDocExists(this.configuration.getIndexName(),
+            assertTrue(this.elasicApi.isDocExists(this.configuration.getIndexName(),
                     this.configuration.getDocType(), String.valueOf(page.getId())));
         }
 
-        Assert.assertFalse(this.elasicApi.isDocExists(this.configuration.getIndexName(),
+        assertFalse(this.elasicApi.isDocExists(this.configuration.getIndexName(),
                 this.configuration.getDocType(), "1234"));
     }
 
@@ -140,7 +121,7 @@ public class TestElasticAPI {
         return wikiPages;
     }
 
-    private void searchCreatedIndex(WikiToElasticConfiguration configuration, RestHighLevelClient client, IElasticAPI elasicApi) throws IOException {
+    private void searchCreatedIndex(WikiToElasticConfiguration configuration, RestHighLevelClient client, ElasticAPI elasicApi) throws IOException {
         // Search page
         SearchRequest searchRequest = new SearchRequest(configuration.getIndexName());
         searchRequest.types(configuration.getDocType());
@@ -152,7 +133,7 @@ public class TestElasticAPI {
         searchRequest.source(sourceBuilder);
 
         SearchResponse searchResponse = client.search(searchRequest);
-        Assert.assertNotNull(searchResponse);
+        assertNotNull(searchResponse);
         System.out.println(searchResponse.toString());
 
         elasicApi.deleteIndex(configuration.getIndexName());
